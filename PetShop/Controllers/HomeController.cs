@@ -14,7 +14,7 @@ namespace PetShop.Controllers
 {
     public class HomeController : Controller
     {
-        public SqlConnection X = new SqlConnection(@"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\efood\PetShop\App_Data\FoodDB.mdf;Integrated Security=True");
+        public SqlConnection X = new SqlConnection(@"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Users\yisiu\Source\Repos\efood-5\PetShop\App_Data\FoodDB.mdf;Integrated Security=True");
         public MyDbContext db = new MyDbContext();
         public string Result2 { get; set; }
         //修改會員資料
@@ -386,12 +386,18 @@ namespace PetShop.Controllers
             decimal.TryParse(Request["Fat"], out fat);
             decimal.TryParse(Request["Carbs"], out carbs);
 
+            DateTime createTime = DateTime.Now;
+            if (!string.IsNullOrEmpty(Request["selectedDateTime"]))
+            {
+                DateTime.TryParse(Request["selectedDateTime"], out createTime);
+            }
+
             string Response;
             try
             {
                 string account = Session["LoginUser"]?.ToString();
                 X.Open();
-                string G = "INSERT INTO Diary (Account, Category, Food, Calories, Protein, Fat, Carbs, MealType, Quantity) VALUES (@Account, @Category, @Food, @Calories, @Protein, @Fat, @Carbs, @MealType, @Quantity)";
+                string G = "INSERT INTO Diary (Account, Category, Food, Calories, Protein, Fat, Carbs, MealType, Quantity, CreateTime) VALUES (@Account, @Category, @Food, @Calories, @Protein, @Fat, @Carbs, @MealType, @Quantity, @CreateTime)";
 
                 SqlCommand Q = new SqlCommand(G, X);
                 Q.Parameters.AddWithValue("@Account", account);
@@ -403,6 +409,7 @@ namespace PetShop.Controllers
                 Q.Parameters.AddWithValue("@Carbs", carbs);
                 Q.Parameters.AddWithValue("@MealType", MealType);
                 Q.Parameters.AddWithValue("@Quantity", quantity);
+                Q.Parameters.AddWithValue("@CreateTime", createTime);
 
                 Q.ExecuteNonQuery();
                 Response = "建立成功";
@@ -428,10 +435,10 @@ namespace PetShop.Controllers
             DateTime nextDay = selectedDate.AddDays(1); // 取得隔天
 
             // 用範圍比對，不用 .Date
-            var entries = db.DiaryEntries
-                            .Where(e => e.CreateTime >= selectedDate && e.CreateTime < nextDay)
-                            .OrderByDescending(e => e.CreateTime)
-                            .ToList();
+            //var entries = db.DiaryEntries
+            //                .Where(e => e.CreateTime >= selectedDate && e.CreateTime < nextDay)
+            //                .OrderByDescending(e => e.CreateTime)
+            //                .ToList();
 
             string account = Session["LoginUser"]?.ToString();
             List<DiaryEntry> userDiaries = new List<DiaryEntry>();
