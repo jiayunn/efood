@@ -71,7 +71,7 @@
     <!-- 左半部：基本資料 -->
     <div style="flex: 1; padding: 30px; display: flex; flex-direction: column; align-items: flex-start; width: 40%; max-width: 33vw;">
         @*<h2 style="margin: 0 0 20px 0; align-self: flex-start;">目標設定</h2>*@
-        <div style="width: 100%; border: 2px solid #ccc; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; justify-content: flex-start; position: relative; height: calc(100% - 60px); background-color: #fff;">
+        <div style="width: 70%; border: 2px solid #ccc; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; justify-content: flex-start; position: relative; height: calc(100% - 60px); background-color: #fff;">
             <!-- 標題與會員照片 -->
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <h3 style="margin: 0 auto; font-size: 20px;">基本資料</h3>
@@ -94,51 +94,52 @@
     </div>
 
     <!-- 中間間隔 -->
-    <div style="width: 8%;"></div>
+    @*<div style="width: 8%;"></div>*@
 
     <!-- 右半部：目標設定與熱量分析 -->
-    <div style="flex: 1; padding: 30px; display: flex; flex-direction: column; align-items: flex-start; width: 40%;">
-        <!-- 目標設定方框 -->
-        <div style="width: 100%; border: 2px solid #ccc; border-radius: 10px; padding: 20px; margin-bottom: 20px; height: calc(60% - 20px); background-color: #fff;">
-            <h3 style="margin: 0 0 20px 0; font-size: 20px;">設定目標</h3>
-            <div style="display: flex; flex-direction: column; gap: 15px;">
-                <div>
-                    <label style="font-size: 18px; margin-right: 10px;">目標時間（天）:</label>
-                    <input type="number" id="targetDays" name="targetDays" value="@ViewBag.TargetDays" min="7" style="font-size: 16px; padding: 5px; width: 100px;" />
-                </div>
-                <div>
-                    <label style="font-size: 18px; margin-right: 10px;">目標體重（kg）:</label>
-                    <input type="number" id="targetWeight" name="targetWeight" value="@ViewBag.TargetWeight" step="0.1" min="0" style="font-size: 16px; padding: 5px; width: 100px;" />
-                </div>
-                <div>
-                    <button id="updateGoal" style="font-size: 16px; padding: 8px 16px; background-color: #466954; color: white; border: none; border-radius: 5px; cursor: pointer;">更新目標</button>
-                    <span id="goalStatus"></span>
-                </div>
+<div style="flex: 1; padding: 30px; display: flex; flex-direction: column; align-items: flex-start; width: 40%;">
+    <!-- 目標設定方框 -->
+    <div style="width: 260px; border: 2px solid #ccc; border-radius: 10px; padding: 20px; margin-bottom: 20px; height: calc(60% - 20px); background-color: #fff;">
+        <h3 style="margin: 0 0 20px 0; font-size: 20px;">設定目標</h3>
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <div>
+                <label style="font-size: 18px; margin-right: 10px;">目標時間（天）:</label>
+                <input type="number" id="targetDays" name="targetDays" value="@ViewBag.TargetDays" min="7" style="font-size: 16px; padding: 5px; width: 100px;" />
             </div>
-        </div>
-        <!-- 每日所需熱量方框 -->
-        <div style="width: 100%; border: 2px solid #ccc; border-radius: 10px; padding: 20px; position: relative; height: calc(40% - 20px); background-color: #fff;">
-            <h3 style="margin: 0 0 10px 0; font-size: 20px;">每日所需熱量</h3>
-            <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
-                <span id="dailyCaloriesValue" style="font-size: 48px; font-weight: bold;">@ViewBag.DailyCalories</span>
-                <input type="hidden" id="dailyCaloriesInput" name="dailyCalories" value="@dailyCalories" />
+            <div>
+                <label style="font-size: 18px; margin-right: 10px;">目標體重（kg）:</label>
+                <input type="number" id="targetWeight" name="targetWeight" value="@ViewBag.TargetWeight" step="0.1" min="0" style="font-size: 16px; padding: 5px; width: 100px;" />
             </div>
-            <div style="position: absolute; bottom: 10px; right: 10px; font-size: 16px; color: #666;">kcal</div>
+            <div>
+                <button id="updateGoal" style="font-size: 16px; padding: 8px 16px; background-color: #466954; color: white; border: none; border-radius: 5px; cursor: pointer;">更新目標</button>
+                <span id="goalStatus"></span>
+            </div>
         </div>
     </div>
+    <!-- 每日所需熱量方框 -->
+    <div style="width: 100px; border: 2px solid #ccc; border-radius: 10px; padding: 20px; position: relative; height: calc(40% - 20px); background-color: #fff;">
+        <h3 style="margin: 0 0 10px 0; font-size: 20px;">每日所需熱量</h3>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+            <span id="dailyCaloriesValue" style="font-size: 40px; font-weight: bold;">@ViewBag.DailyCalories</span>
+            <input type="hidden" id="dailyCaloriesInput" name="dailyCalories" value="@dailyCalories" />
+        </div>
+        <div style="position: absolute; bottom: 10px; right: 10px; font-size: 16px; color: #666;">kcal</div>
+    </div>
+    <!-- 每日飲食熱量方框 -->
+    <div style="width: 100px; border: 2px solid #ccc; border-radius: 10px; padding: 20px; position: relative; height: calc(30% - 20px); background-color: #fff;">
+        <h3 style="margin: 0 0 10px 0; font-size: 20px;">今日飲食總熱量</h3>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 48px; font-weight: bold;">@ViewBag.TodayCalories</span>
+        </div>
+        <div style="position: absolute; bottom: 10px; right: 10px; font-size: 16px; color: #666;">kcal</div>
+    </div>
+</div>
 
     <!-- 中間間隔 -->
-    <div style="width: 8%;"></div>
+    @*<div style="width: 8%;"></div>*@
 
     <div style="width: 20%;">
-        <!-- 每日飲食熱量方框 -->
-        <div style="width: 100%; border: 2px solid #ccc; border-radius: 10px; padding: 20px; position: relative; height: calc(30% - 20px); background-color: #fff;">
-            <h3 style="margin: 0 0 10px 0; font-size: 20px;">今日飲食總熱量</h3>
-            <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
-                <span style="font-size: 48px; font-weight: bold;">@ViewBag.TodayCalories</span>
-            </div>
-            <div style="position: absolute; bottom: 10px; right: 10px; font-size: 16px; color: #666;">kcal</div>
-        </div>
+        
         <!-- 熱量差距方框 -->
         <div style="width: 100%; border: 2px solid #ccc; border-radius: 10px; padding: 20px; position: relative; height: calc(30% - 20px); background-color: #fff;">
             <h3 style="margin: 0 0 10px 0; font-size: 20px;">熱量差距</h3>
