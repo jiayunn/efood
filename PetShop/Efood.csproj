@@ -171,8 +171,11 @@
     <Compile Include="Models\Food.cs" />
     <Compile Include="Models\MealChoiceEntry.cs" />
     <Compile Include="Models\Member.cs" />
+    <Compile Include="Models\Objective.cs" />
     <Compile Include="Models\RegisterUser.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\GeminiAnalysisService.cs" />
+    <Compile Include="Services\IGeminiAnalysisService.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="App_Data\FoodDB.mdf" />

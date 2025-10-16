@@ -1,4 +1,6 @@
-﻿using PetShop.Models;
+﻿using Newtonsoft.Json; // 引用 Json 處理工具
+using PetShop.Models;
+using PetShop.Services; // 引用我們的服務
 using System;
 using System.Collections.Generic;
 using System.Data.Entity;
@@ -6,7 +8,10 @@ using System.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.AccessControl;
 using System.Security.Policy;
+using System.Text;
+using System.Threading.Tasks;
 using System.Web.Mvc;
 using System.Web.Services.Description;
 using System.Web.UI.WebControls;
@@ -15,6 +20,9 @@ namespace PetShop.Controllers
 {
     public class HomeController : Controller
     {
+        private readonly IGeminiAnalysisService _geminiService = new GeminiAnalysisService();
+        
+
         public SqlConnection X = new SqlConnection(@"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Users\Vivobook_15\source\repos\efood1016\PetShop\App_Data\FoodDB.mdf;Integrated Security=True");
         public MyDbContext db = new MyDbContext();
         public string Result2 { get; set; }
@@ -905,7 +913,7 @@ namespace PetShop.Controllers
             }
 
             // 取得當日飲食加總熱量
-            decimal totalCalories = 0;
+            decimal totalCalories = 0; 
             try
             {
                 X.Open();
@@ -1456,5 +1464,188 @@ namespace PetShop.Controllers
             TempData["Note"] = "密碼已成功重設，請重新登入";
             return RedirectToAction("LoginRegister");
         }
+
+        [HttpPost]
+        public async Task<JsonResult> GenerateAiAnalysis()
+        {
+            string account = Session["LoginUser"]?.ToString();
+            if (string.IsNullOrEmpty(account))
+            {
+                return Json(new { success = false, message = "使用者未登入" });
+            }
+
+            try
+            {
+                // --- 1. 從資料庫收集所有需要的資訊 ---
+                RegisterUser member = null;
+                Objective objective = null;
+                List<DiaryEntry> recentDiaries = new List<DiaryEntry>();
+                List<CommonFood> recommendedFoods = new List<CommonFood>();
+
+                X.Open(); // 打開資料庫連線
+
+                // a. 取得使用者資料 (Null-safe)
+                var memberCmd = new SqlCommand("SELECT * FROM [Member] WHERE Account = @Account", X);
+                memberCmd.Parameters.AddWithValue("@Account", account);
+                using (var memberReader = memberCmd.ExecuteReader())
+                {
+                    if (memberReader.Read())
+                    {
+                        member = new RegisterUser
+                        {
+                            RegisterWeight = memberReader["Weight"] != DBNull.Value ? Convert.ToSingle(memberReader["Weight"]) : 0f,
+                            RegisterHeight = memberReader["Height"] != DBNull.Value ? Convert.ToSingle(memberReader["Height"]) : 0f
+                        };
+                    }
+                }
+
+                // b. 取得使用者目標 (Null-safe)
+                var objectiveCmd = new SqlCommand("SELECT * FROM Objectives WHERE Account = @Account", X);
+                objectiveCmd.Parameters.AddWithValue("@Account", account);
+                using (var objReader = objectiveCmd.ExecuteReader())
+                {
+                    if (objReader.Read())
+                    {
+                        objective = new Objective
+                        {
+                            TargetWeight = objReader["TargetWeight"] != DBNull.Value ? Convert.ToSingle(objReader["TargetWeight"]) : 0f,
+                            DailyCalories = objReader["DailyCalories"] != DBNull.Value ? Convert.ToDecimal(objReader["DailyCalories"]) : 0m
+                        };
+                    }
+                }
+
+                // c. 取得近期飲食紀錄 (Null-safe)
+                var diaryCmd = new SqlCommand("SELECT TOP 20 * FROM Diary WHERE Account = @Account ORDER BY CreateTime DESC", X);
+                diaryCmd.Parameters.AddWithValue("@Account", account);
+                using (var diaryReader = diaryCmd.ExecuteReader())
+                {
+                    while (diaryReader.Read())
+                    {
+                        recentDiaries.Add(new DiaryEntry
+                        {
+                            Food = diaryReader["Food"]?.ToString(),
+                            Calories = diaryReader["Calories"] != DBNull.Value ? Convert.ToDecimal(diaryReader["Calories"]) : 0m,
+                            Protein = diaryReader["Protein"] != DBNull.Value ? Convert.ToDecimal(diaryReader["Protein"]) : 0m,
+                            Fat = diaryReader["Fat"] != DBNull.Value ? Convert.ToDecimal(diaryReader["Fat"]) : 0m,
+                            Carbs = diaryReader["Carbs"] != DBNull.Value ? Convert.ToDecimal(diaryReader["Carbs"]) : 0m,
+                            CreateTime = diaryReader["CreateTime"] != DBNull.Value ? Convert.ToDateTime(diaryReader["CreateTime"]) : DateTime.MinValue
+                        });
+                    }
+                }
+
+                // d. 取得推薦食物清單 (Null-safe)
+                var foodCmd = new SqlCommand("SELECT TOP 20 * FROM CommonFoods ORDER BY NEWID()", X);
+                using (var foodReader = foodCmd.ExecuteReader())
+                {
+                    while (foodReader.Read())
+                    {
+                        recommendedFoods.Add(new CommonFood
+                        {
+                            Name = foodReader["Name"]?.ToString(),
+                            Calories = foodReader["Calories"] != DBNull.Value ? Convert.ToDecimal(foodReader["Calories"]) : 0m,
+                            Protein = foodReader["Protein"] != DBNull.Value ? Convert.ToDecimal(foodReader["Protein"]) : 0m,
+                            Fat = foodReader["Fat"] != DBNull.Value ? Convert.ToDecimal(foodReader["Fat"]) : 0m,
+                            Carbs = foodReader["Carbs"] != DBNull.Value ? Convert.ToDecimal(foodReader["Carbs"]) : 0m
+                        });
+                    }
+                }
+
+                X.Close(); // 關閉資料庫連線
+
+                if (member == null || objective == null)
+                {
+                    return Json(new { success = false, message = "找不到使用者資料或目標設定，請先到目標設定頁面設定目標。" });
+                }
+
+                // --- 2. 建構黃金提示 (Golden Prompt) ---
+                var promptBuilder = new StringBuilder();
+
+                // 設定角色和任務
+                promptBuilder.AppendLine("你是一位專業的營養師，專長是便利商店的飲食搭配。");
+                promptBuilder.AppendLine("你的任務是根據使用者的個人身體數據、減重/增重目標和最近的飲食紀錄，分析其飲食的優缺點，並從提供的「全家便利商店推薦食物清單」中，給出具體、可行的建議。");
+                promptBuilder.AppendLine("請以鼓勵、正向且易於理解的語氣回答，並使用繁體中文和 Markdown 的項目符號格式。");
+                promptBuilder.AppendLine("\n---");
+
+                // 提供使用者數據
+                float heightInMeters = member.RegisterHeight / 100;
+                float bmi = heightInMeters > 0 ? (float)Math.Round(member.RegisterWeight / (heightInMeters * heightInMeters), 1) : 0;
+                string goal = (objective.TargetWeight > member.RegisterWeight) ? "增重" : "減重";
+
+                promptBuilder.AppendLine("## 使用者資訊");
+                promptBuilder.AppendLine($"- 目前身高: {member.RegisterHeight} cm");
+                promptBuilder.AppendLine($"- 目前體重: {member.RegisterWeight} kg");
+                promptBuilder.AppendLine($"- BMI: {bmi}");
+                promptBuilder.AppendLine($"- 主要目標: {goal}至 {objective.TargetWeight} kg");
+                promptBuilder.AppendLine($"- 每日建議熱量: {objective.DailyCalories} kcal");
+                promptBuilder.AppendLine("\n---");
+
+                // 提供飲食紀錄
+                promptBuilder.AppendLine("## 使用者最近的飲食紀錄 (JSON格式)");
+                promptBuilder.AppendLine("```json");
+                promptBuilder.AppendLine(JsonConvert.SerializeObject(recentDiaries, Formatting.Indented));
+                promptBuilder.AppendLine("```");
+                promptBuilder.AppendLine("\n---");
+
+                // 提供可推薦的食物
+                promptBuilder.AppendLine("## 全家便利商店推薦食物清單 (請從這裡挑選推薦)");
+                promptBuilder.AppendLine("```json");
+                promptBuilder.AppendLine(JsonConvert.SerializeObject(recommendedFoods, Formatting.Indented));
+                promptBuilder.AppendLine("```");
+                promptBuilder.AppendLine("\n---");
+
+                // 提出具體要求
+                promptBuilder.AppendLine("## 分析與建議請求");
+                promptBuilder.AppendLine("1. **綜合分析**: 請總結使用者最近飲食的熱量和營養素攝取狀況，點出1-2個最主要的問題。");
+                promptBuilder.AppendLine("2. **具體建議**: 根據他的目標，請從「全家便利商店推薦食物清單」中，推薦3個今天可以補充或替換的食物，並說明原因。");
+
+                string finalPrompt = promptBuilder.ToString();
+
+                // --- 3. 呼叫 Gemini 服務 ---
+                string analysisResult = await _geminiService.GetDietAnalysisAsync(finalPrompt);
+
+                return Json(new { success = true, analysis = analysisResult }, JsonRequestBehavior.AllowGet);
+            }
+            catch (Exception ex)
+            {
+                if (X.State == System.Data.ConnectionState.Open) X.Close();
+                // 回傳更詳細的錯誤訊息，方便除錯
+                return Json(new { success = false, message = $"產生分析時發生錯誤：{ex.Message}" });
+            }
+        }
+
+        [HttpGet]
+        public ActionResult ListMyModels() // 注意：拿掉了 async 和 Task<>
+        {
+            string apiKey = System.Web.Configuration.WebConfigurationManager.AppSettings["GeminiApiKey"];
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                return Content("錯誤：找不到 API 金鑰。");
+            }
+
+            var url = $"https://generativelanguage.googleapis.com/v1beta/models?key={apiKey}";
+
+            // 使用傳統的同步方式呼叫 API
+            using (var client = new System.Net.Http.HttpClient())
+            {
+                try
+                {
+                    // 使用 .Result 會強制等待，將非同步轉為同步
+                    var response = client.GetAsync(url).Result;
+                    var responseString = response.Content.ReadAsStringAsync().Result;
+
+                    return Content(responseString, "application/json", System.Text.Encoding.UTF8);
+                }
+                catch (Exception ex)
+                {
+                    // 如果是 AggregateException，顯示內部的詳細錯誤
+                    if (ex is AggregateException aggEx)
+                    {
+                        return Content($"呼叫 API 時發生錯誤: {aggEx.InnerException.Message}");
+                    }
+                    return Content($"呼叫 API 時發生錯誤: {ex.Message}");
+                }
+            }
+        }
     }
 }
+    

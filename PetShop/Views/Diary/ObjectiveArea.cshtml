@@ -138,46 +138,63 @@
     <!-- 中間間隔 -->
     @*<div style="width: 8%;"></div>*@
 
-    <div style="width: 20%;">
-        
-        <!-- 熱量差距方框 -->
-        <div style="width: 100%; border: 2px solid #ccc; border-radius: 10px; padding: 20px; position: relative; height: calc(30% - 20px); background-color: #fff;">
-            <h3 style="margin: 0 0 10px 0; font-size: 20px;">熱量差距</h3>
-            <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
-                <span style="font-size: 48px; font-weight: bold;">@ViewBag.CalorieDiff</span>
-            </div>
-            <div style="position: absolute; bottom: 10px; right: 10px; font-size: 16px; color: #666;">kcal</div>
-        </div>
+<div style="width: 20%;">
 
-        <!-- 推薦食物清單 -->
-        <div style="width: 100%; border: 2px solid #ccc; border-radius: 10px; padding: 20px; position: relative; height: calc(40% - 20px); background-color: #fff;">
-            @if (recommendFoods != null && recommendFoods.Count > 0)
-            {
-                <div>
-                    @if (ViewBag.CalorieDiff > 0)
-                    {
-                        <h3 style="margin: 0 0 10px 0; font-size: 20px;">建議補充以下食物：</h3>
-                    }
-                    else
-                    {
-                        <h3 style="margin: 0 0 10px 0; font-size: 20px;">建議減少以下食物：</h3>
-                    }
-                    <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
-                        <ul style="list-style-type: disc; padding-left: 20px; text-align: left;">
-                            @foreach (var food in recommendFoods)
-                            {
-                                <li style="font-size: 18px; margin-bottom: 8px;">@food.Name (@food.Calories kcal)</li>
-                            }
-                        </ul>
-                    </div>
+    <!-- 熱量差距方框 -->
+    <div style="width: 100%; border: 2px solid #ccc; border-radius: 10px; padding: 20px; position: relative; height: calc(30% - 20px); background-color: #fff;">
+        <h3 style="margin: 0 0 10px 0; font-size: 20px;">熱量差距</h3>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 48px; font-weight: bold;">@ViewBag.CalorieDiff</span>
+        </div>
+        <div style="position: absolute; bottom: 10px; right: 10px; font-size: 16px; color: #666;">kcal</div>
+    </div>
+
+    <!-- 推薦食物清單 -->
+    <div style="width: 100%; border: 2px solid #ccc; border-radius: 10px; padding: 20px; position: relative; height: calc(40% - 20px); background-color: #fff;">
+        @if (recommendFoods != null && recommendFoods.Count > 0)
+        {
+            <div>
+                @if (ViewBag.CalorieDiff > 0)
+                {
+                    <h3 style="margin: 0 0 10px 0; font-size: 20px;">建議補充以下食物：</h3>
+                }
+                else
+                {
+                    <h3 style="margin: 0 0 10px 0; font-size: 20px;">建議減少以下食物：</h3>
+                }
+                <div style="flex: 1; display: flex; align-items: center; justify-content: center;">
+                    <ul style="list-style-type: disc; padding-left: 20px; text-align: left;">
+                        @foreach (var food in recommendFoods)
+                        {
+                            <li style="font-size: 18px; margin-bottom: 8px;">@food.Name (@food.Calories kcal)</li>
+                        }
+                    </ul>
                 </div>
-            }
-            else
-            {
-                <div style="text-align: center; color: #888; font-size: 16px;">無推薦食物</div>
-            }
+            </div>
+        }
+        else
+        {
+            <div style="text-align: center; color: #888; font-size: 16px;">無推薦食物</div>
+        }
+    </div>
+
+
+    <div style="border: 2px solid #007bff; border-radius: 10px; padding: 20px; margin-top: 20px; background-color: #f8f9fa;">
+        <h3 style="margin: 0 0 10px 0; font-size: 20px;">🤖 AI 營養師分析</h3>
+        <div style="text-align: center; margin-bottom: 15px;">
+            <button id="getAiAnalysisBtn" style="font-size: 16px; padding: 8px 16px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                產生個人化飲食建議
+            </button>
+        </div>
+        <div id="aiResultSpinner" style="display: none; text-align: center;">
+            <p>AI 營養師正在分析中，請稍候...</p>
+        </div>
+        <div id="aiResultContainer" style="font-size: 16px; line-height: 1.6; white-space: pre-wrap;">
         </div>
     </div>
+
+
+</div>
 </div>
 
 <!-- JavaScript（處理更新目標按鈕） -->
@@ -226,5 +243,35 @@
             });
         });
     });
+
+    // 監聽 AI 分析按鈕的點擊事件
+$('#getAiAnalysisBtn').click(function () {
+    var btn = $(this);
+    var resultContainer = $('#aiResultContainer');
+    var spinner = $('#aiResultSpinner');
+
+    btn.prop('disabled', true).text('分析中...');
+    spinner.show();
+    resultContainer.html('');
+
+    $.ajax({
+        url: '@Url.Action("GenerateAiAnalysis", "Home")',
+        type: 'POST',
+        success: function (response) {
+            if (response.success) {
+                resultContainer.text(response.analysis);
+            } else {
+                resultContainer.html('<p style="color: red;">分析失敗：' + response.message + '</p>');
+            }
+        },
+        error: function () {
+            resultContainer.html('<p style="color: red;">無法連接到伺服器，請稍後再試。</p>');
+        },
+        complete: function () {
+            spinner.hide();
+            btn.prop('disabled', false).text('重新產生飲食建議');
+        }
+    });
+});
 
 </script>
