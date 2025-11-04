@@ -22,7 +22,7 @@ namespace PetShop.Controllers
     {
         private readonly IGeminiAnalysisService _geminiService = new GeminiAnalysisService();
 
-        public SqlConnection X = new SqlConnection(@"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\efood\PetShop\App_Data\FoodDB.mdf;Integrated Security=True");
+        public SqlConnection X = new SqlConnection(@"Data Source=(LocalDB)\MSSQLLocalDB;AttachDbFilename=C:\Users\yisiu\Source\Repos\efood-7\PetShop\App_Data\FoodDB.mdf;Integrated Security=True");
         public MyDbContext db = new MyDbContext();
         public string Result2 { get; set; }
         //修改會員資料
@@ -374,7 +374,9 @@ namespace PetShop.Controllers
             Session["LoginUser"] = null;
             return View("~/Views/Home/Index.cshtml");
         }
+
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public ActionResult DiaryArea()
         {
             string Category = Request["Category"]?.ToString();
@@ -388,6 +390,18 @@ namespace PetShop.Controllers
             decimal.TryParse(Request["Protein"], out singleProtein);
             decimal.TryParse(Request["Fat"], out singleFat);
             decimal.TryParse(Request["Carbs"], out singleCarbs);
+            // 新增防呆限制條件
+            if (string.IsNullOrWhiteSpace(MealType))
+            {
+                TempData["Msg"] = "請選擇餐別";
+                return RedirectToAction("DiaryIndex");
+            }
+
+            if (string.IsNullOrWhiteSpace(commonFoodField))
+            {
+                TempData["Msg"] = "請至少選擇一項食物";
+                return RedirectToAction("DiaryIndex");
+            }
 
             DateTime createTime = DateTime.Now;
             if (!string.IsNullOrEmpty(Request["selectedDateTime"]))
@@ -1400,6 +1414,7 @@ namespace PetShop.Controllers
 
             return View("~/Views/Diary/MealArea.cshtml");
         }
+
         public ActionResult Index()
         {
             ViewBag.Account = Session["LoginUser"];
